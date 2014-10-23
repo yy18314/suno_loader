@@ -1,56 +1,88 @@
 /**
- * Created by yuyou on 14-10-16.
+ * Created by yuyou on 14/10/20.
  */
-
-var Resource = function(url,type){
-    this.type = type?type:"image";
-    this.url = url;
+var loader = function(baseUrl){
+    this.baseUrl = baseUrl || "";
+    this.imageArr = [];
 }
-var Loader = function(_config){
-    this.loading = document.getElementById(_config.loading);    //loading
-    this.loadList = new Array();
-    this.total = 0;
-}
-Loader.prototype = {
-    queue:function(successCallback){
-        //执行列队操作
-        this.total = this.loadList.length;
-        for(var i = 0 ; i < this.total ; i ++){
-            var _res = this.loadList[i];
-            this.loadRes(_res);
+loader.prototype = {
+    loadScript:function(src,callback) {
+        var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement,
+            script,options;
+        var url = this.baseUrl + "js/" + src;
+        script = document.createElement("script");
+        script.async = false;
+        script.type = "text/javascript";
+        script.charset = "utf-8";
+        url = url+( /\?/.test( url ) ? "&" : "?" )+ "_=" +(new Date()).getTime();
+        script.src = url;
+        head.insertBefore(script, head.firstChild);
+        if(callback){
+            document.addEventListener ? script.addEventListener("load", callback, false) : script.onreadystatechange = function() {
+                if (/loaded|complete/.test(script.readyState)) {
+                    script.onreadystatechange = null
+                    callback()
+                }
+            }
         }
     },
-    add:function(res){
-        //增加列队
-        this.loadList.push(res);
+    loadCSS:function(src,callback){
+        //未完成
     },
-    loadImage: function (url) {
-        //加载一张图片
+    loadImage:function(src,callback){
         var image = new Image();
-        var self = this;
-        image.src = url;
+        var that = this;
+        image.src = this.baseUrl + "images/" + src;
         image.addEventListener('load',function(e){
-            //图片加载成功
+            callback.apply(this,arguments);
+            that.imageArr.push({src:this.src,loaded:true});
         });
         image.addEventListener('error',function(e){
-            //图片加载失败
+            //alert("图片资源不存在");
+            callback.apply(this,arguments);
+            that.imageArr.push({src:this.src,loaded:false});
         });
     },
-    loadScript: function (url){
-        //加载JavaScript
-    },
-    loadCSS: function(url){
-        //加载CSS样式表
-    },
-    loadRes:function(res){
-        switch(res.type){
-            case "image":this.loadImage(res.url);break;
-            case "script":this.loadScript(res.url);break;
-            case "css":this.loadCSS(res.url);break;
-            default:break;
+    load:function(type,src,callback){
+        switch(type){
+            case "script":
+                this.loadScript(src,callback);
+                break;
+            case "css":
+                this.loadCSS(src,callback);
+                break;
+            case "image":
+                this.loadImage(src,callback);
+                break;
+            default :break;
         }
     },
-    loadSuccess:function(){
-        //所有资源加载完毕
+    loadSync:function(configs,percentage,next,index){
+        //同步列队方式
+        index = index || 0;
+        var config = configs[index];
+        var that = this;
+        this.load(config[0],config[1],function(){
+            if(index < configs.length - 1){
+                percentage(configs.length,index);
+                that.loadSync(configs,percentage,next,index + 1);
+            }else{
+                next.apply(this,arguments);
+            }
+        });
+    },
+    loadAsync:function(configs,percentage,callback){
+        //异步列队方式
+        var index = 0;
+        for(var i = 0 ; i < configs.length ; i ++){
+            var config = configs[i];
+            this.load(config[0],config[1],function(){
+                index ++;
+                percentage(configs.length,index);
+                if(index == configs.length){
+                    callback.apply(this,arguments);
+                }
+            })
+        }
     }
 }
