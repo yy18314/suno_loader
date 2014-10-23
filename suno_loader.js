@@ -34,13 +34,13 @@ loader.prototype = {
         var that = this;
         image.src = this.baseUrl + "images/" + src;
         image.addEventListener('load',function(e){
+            that.imageArr.push({src:this.src,image:this,loaded:true});
             callback.apply(this,arguments);
-            that.imageArr.push({src:this.src,loaded:true});
         });
         image.addEventListener('error',function(e){
             //alert("图片资源不存在");
+            that.imageArr.push({src:this.src,image:null,loaded:false});
             callback.apply(this,arguments);
-            that.imageArr.push({src:this.src,loaded:false});
         });
     },
     load:function(type,src,callback){
